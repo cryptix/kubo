@@ -9,13 +9,11 @@ import (
 	"github.com/ipfs/boxo/ipns"
 	keystore "github.com/ipfs/boxo/keystore"
 	"github.com/ipfs/boxo/namesys"
-	"github.com/ipfs/kubo/tracing"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ipfs/boxo/path"
 	coreiface "github.com/ipfs/kubo/core/coreiface"
 	caopts "github.com/ipfs/kubo/core/coreiface/options"
+
 	ci "github.com/libp2p/go-libp2p/core/crypto"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 )
@@ -24,8 +22,6 @@ type NameAPI CoreAPI
 
 // Publish announces new IPNS name and returns the new IPNS entry.
 func (api *NameAPI) Publish(ctx context.Context, p path.Path, opts ...caopts.NamePublishOption) (ipns.Name, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.NameAPI", "Publish", trace.WithAttributes(attribute.String("path", p.String())))
-	defer span.End()
 
 	if err := api.checkPublishAllowed(); err != nil {
 		return ipns.Name{}, err
@@ -34,14 +30,6 @@ func (api *NameAPI) Publish(ctx context.Context, p path.Path, opts ...caopts.Nam
 	options, err := caopts.NamePublishOptions(opts...)
 	if err != nil {
 		return ipns.Name{}, err
-	}
-	span.SetAttributes(
-		attribute.Bool("allowoffline", options.AllowOffline),
-		attribute.String("key", options.Key),
-		attribute.Float64("validtime", options.ValidTime.Seconds()),
-	)
-	if options.TTL != nil {
-		span.SetAttributes(attribute.Float64("ttl", options.TTL.Seconds()))
 	}
 
 	err = api.checkOnline(options.AllowOffline)
@@ -79,15 +67,11 @@ func (api *NameAPI) Publish(ctx context.Context, p path.Path, opts ...caopts.Nam
 }
 
 func (api *NameAPI) Search(ctx context.Context, name string, opts ...caopts.NameResolveOption) (<-chan coreiface.IpnsResult, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.NameAPI", "Search", trace.WithAttributes(attribute.String("name", name)))
-	defer span.End()
 
 	options, err := caopts.NameResolveOptions(opts...)
 	if err != nil {
 		return nil, err
 	}
-
-	span.SetAttributes(attribute.Bool("cache", options.Cache))
 
 	err = api.checkOnline(true)
 	if err != nil {
@@ -131,8 +115,6 @@ func (api *NameAPI) Search(ctx context.Context, name string, opts ...caopts.Name
 // Resolve attempts to resolve the newest version of the specified name and
 // returns its path.
 func (api *NameAPI) Resolve(ctx context.Context, name string, opts ...caopts.NameResolveOption) (path.Path, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.NameAPI", "Resolve", trace.WithAttributes(attribute.String("name", name)))
-	defer span.End()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

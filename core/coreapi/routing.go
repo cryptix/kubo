@@ -15,11 +15,9 @@ import (
 	cidutil "github.com/ipfs/go-cidutil"
 	coreiface "github.com/ipfs/kubo/core/coreiface"
 	caopts "github.com/ipfs/kubo/core/coreiface/options"
-	"github.com/ipfs/kubo/tracing"
+
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	routing "github.com/libp2p/go-libp2p/core/routing"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type RoutingAPI CoreAPI
@@ -72,8 +70,7 @@ func normalizeKey(s string) (string, error) {
 }
 
 func (api *RoutingAPI) FindPeer(ctx context.Context, p peer.ID) (peer.AddrInfo, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.DhtAPI", "FindPeer", trace.WithAttributes(attribute.String("peer", p.String())))
-	defer span.End()
+
 	err := api.checkOnline(false)
 	if err != nil {
 		return peer.AddrInfo{}, err
@@ -88,14 +85,11 @@ func (api *RoutingAPI) FindPeer(ctx context.Context, p peer.ID) (peer.AddrInfo, 
 }
 
 func (api *RoutingAPI) FindProviders(ctx context.Context, p path.Path, opts ...caopts.RoutingFindProvidersOption) (<-chan peer.AddrInfo, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.DhtAPI", "FindProviders", trace.WithAttributes(attribute.String("path", p.String())))
-	defer span.End()
 
 	settings, err := caopts.RoutingFindProvidersOptions(opts...)
 	if err != nil {
 		return nil, err
 	}
-	span.SetAttributes(attribute.Int("numproviders", settings.NumProviders))
 
 	err = api.checkOnline(false)
 	if err != nil {
@@ -117,14 +111,11 @@ func (api *RoutingAPI) FindProviders(ctx context.Context, p path.Path, opts ...c
 }
 
 func (api *RoutingAPI) Provide(ctx context.Context, path path.Path, opts ...caopts.RoutingProvideOption) error {
-	ctx, span := tracing.Span(ctx, "CoreAPI.DhtAPI", "Provide", trace.WithAttributes(attribute.String("path", path.String())))
-	defer span.End()
 
 	settings, err := caopts.RoutingProvideOptions(opts...)
 	if err != nil {
 		return err
 	}
-	span.SetAttributes(attribute.Bool("recursive", settings.Recursive))
 
 	err = api.checkOnline(false)
 	if err != nil {

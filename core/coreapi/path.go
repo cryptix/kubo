@@ -6,10 +6,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/boxo/namesys"
-	"github.com/ipfs/kubo/tracing"
-
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ipfs/boxo/path"
 	ipfspathresolver "github.com/ipfs/boxo/path/resolver"
@@ -20,8 +16,6 @@ import (
 // ResolveNode resolves the path `p` using Unixfs resolver, gets and returns the
 // resolved Node.
 func (api *CoreAPI) ResolveNode(ctx context.Context, p path.Path) (ipld.Node, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI", "ResolveNode", trace.WithAttributes(attribute.String("path", p.String())))
-	defer span.End()
 
 	rp, _, err := api.ResolvePath(ctx, p)
 	if err != nil {
@@ -38,8 +32,6 @@ func (api *CoreAPI) ResolveNode(ctx context.Context, p path.Path) (ipld.Node, er
 // ResolvePath resolves the path `p` using Unixfs resolver, returns the
 // resolved path.
 func (api *CoreAPI) ResolvePath(ctx context.Context, p path.Path) (path.ImmutablePath, []string, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI", "ResolvePath", trace.WithAttributes(attribute.String("path", p.String())))
-	defer span.End()
 
 	res, err := namesys.Resolve(ctx, api.namesys, p)
 	if errors.Is(err, namesys.ErrNoNamesys) {

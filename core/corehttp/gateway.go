@@ -23,7 +23,6 @@ import (
 	iface "github.com/ipfs/kubo/core/coreiface"
 	"github.com/ipfs/kubo/core/node"
 	"github.com/libp2p/go-libp2p/core/routing"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func GatewayOption(paths ...string) ServeOption {
@@ -40,7 +39,6 @@ func GatewayOption(paths ...string) ServeOption {
 
 		handler := gateway.NewHandler(config, backend)
 		handler = gateway.NewHeaders(headers).ApplyCors().Wrap(handler)
-		handler = otelhttp.NewHandler(handler, "Gateway")
 
 		for _, p := range paths {
 			mux.Handle(p+"/", handler)
@@ -67,7 +65,6 @@ func HostnameOption() ServeOption {
 		var handler http.Handler
 		handler = gateway.NewHostnameHandler(config, backend, childMux)
 		handler = gateway.NewHeaders(headers).ApplyCors().Wrap(handler)
-		handler = otelhttp.NewHandler(handler, "HostnameGateway")
 
 		mux.Handle("/", handler)
 		return childMux, nil
@@ -105,7 +102,6 @@ func Libp2pGatewayOption() ServeOption {
 		}
 
 		handler := gateway.NewHandler(gwConfig, &offlineGatewayErrWrapper{gwimpl: backend})
-		handler = otelhttp.NewHandler(handler, "Libp2p-Gateway")
 
 		mux.Handle("/ipfs/", handler)
 

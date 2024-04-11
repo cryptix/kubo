@@ -9,10 +9,6 @@ import (
 	"github.com/ipfs/boxo/path"
 	coreiface "github.com/ipfs/kubo/core/coreiface"
 	caopts "github.com/ipfs/kubo/core/coreiface/options"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
-	"github.com/ipfs/kubo/tracing"
 )
 
 type ObjectAPI CoreAPI
@@ -28,18 +24,11 @@ type Node struct {
 }
 
 func (api *ObjectAPI) AddLink(ctx context.Context, base path.Path, name string, child path.Path, opts ...caopts.ObjectAddLinkOption) (path.ImmutablePath, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.ObjectAPI", "AddLink", trace.WithAttributes(
-		attribute.String("base", base.String()),
-		attribute.String("name", name),
-		attribute.String("child", child.String()),
-	))
-	defer span.End()
 
 	options, err := caopts.ObjectAddLinkOptions(opts...)
 	if err != nil {
 		return path.ImmutablePath{}, err
 	}
-	span.SetAttributes(attribute.Bool("create", options.Create))
 
 	baseNd, err := api.core().ResolveNode(ctx, base)
 	if err != nil {
@@ -77,11 +66,6 @@ func (api *ObjectAPI) AddLink(ctx context.Context, base path.Path, name string, 
 }
 
 func (api *ObjectAPI) RmLink(ctx context.Context, base path.Path, link string) (path.ImmutablePath, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.ObjectAPI", "RmLink", trace.WithAttributes(
-		attribute.String("base", base.String()),
-		attribute.String("link", link)),
-	)
-	defer span.End()
 
 	baseNd, err := api.core().ResolveNode(ctx, base)
 	if err != nil {
@@ -109,11 +93,6 @@ func (api *ObjectAPI) RmLink(ctx context.Context, base path.Path, link string) (
 }
 
 func (api *ObjectAPI) Diff(ctx context.Context, before path.Path, after path.Path) ([]coreiface.ObjectChange, error) {
-	ctx, span := tracing.Span(ctx, "CoreAPI.ObjectAPI", "Diff", trace.WithAttributes(
-		attribute.String("before", before.String()),
-		attribute.String("after", after.String()),
-	))
-	defer span.End()
 
 	beforeNd, err := api.core().ResolveNode(ctx, before)
 	if err != nil {

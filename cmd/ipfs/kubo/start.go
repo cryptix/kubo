@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"runtime/pprof"
-	"strings"
 	"time"
 
 	"github.com/blang/semver/v4"
@@ -33,22 +32,14 @@ import (
 	"github.com/ipfs/kubo/plugin/loader"
 	"github.com/ipfs/kubo/repo"
 	"github.com/ipfs/kubo/repo/fsrepo"
-	"github.com/ipfs/kubo/tracing"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/contrib/propagators/autoprop"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // log is the command logger.
 var (
-	log    = logging.Logger("cmd/ipfs")
-	tracer trace.Tracer
+	log = logging.Logger("cmd/ipfs")
 )
 
 // declared as a var for testing purposes.
@@ -159,19 +150,6 @@ func BuildEnv(pl PluginPreloader) func(ctx context.Context, req *cmds.Request) (
 func Start(buildEnv func(ctx context.Context, req *cmds.Request) (cmds.Environment, error)) (exitCode int) {
 	ctx := logging.ContextWithLoggable(context.Background(), newUUID("session"))
 
-	tp, err := tracing.NewTracerProvider(ctx)
-	if err != nil {
-		return printErr(err)
-	}
-	defer func() {
-		if err := tp.Shutdown(ctx); err != nil {
-			exitCode = printErr(err)
-		}
-	}()
-	otel.SetTracerProvider(tp)
-	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
-	tracer = tp.Tracer("Kubo-cli")
-
 	stopFunc, err := profileIfEnabled()
 	if err != nil {
 		return printErr(err)
@@ -248,7 +226,7 @@ func apiAddrOption(req *cmds.Request) (ma.Multiaddr, error) {
 var encodedAbsolutePathVersion = semver.MustParse("0.23.0-dev")
 
 func makeExecutor(req *cmds.Request, env interface{}) (cmds.Executor, error) {
-	exe := tracingWrappedExecutor{cmds.NewExecutor(req.Root)}
+	exe := cmds.NewExecutor(req.Root)
 	cctx := env.(*oldcmds.Context)
 
 	// Check if the command is disabled.
@@ -346,34 +324,18 @@ func makeExecutor(req *cmds.Request, env interface{}) (cmds.Executor, error) {
 	}
 
 	httpClient := &http.Client{
-		Transport: otelhttp.NewTransport(tpt),
+		Transport: tpt,
 	}
 	opts = append(opts, cmdhttp.ClientWithHTTPClient(httpClient))
 
 	// Fetch remove version, as some feature compatibility might change depending on it.
-	remoteVersion, err := getRemoteVersion(tracingWrappedExecutor{cmdhttp.NewClient(host, opts...)})
+	remoteVersion, err := getRemoteVersion(cmdhttp.NewClient(host, opts...))
 	if err != nil {
 		return nil, err
 	}
 	opts = append(opts, cmdhttp.ClientWithRawAbsPath(remoteVersion.LT(encodedAbsolutePathVersion)))
 
-	return tracingWrappedExecutor{cmdhttp.NewClient(host, opts...)}, nil
-}
-
-type tracingWrappedExecutor struct {
-	exec cmds.Executor
-}
-
-func (twe tracingWrappedExecutor) Execute(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
-	ctx, span := tracer.Start(req.Context, "cmds."+strings.Join(req.Path, "."), trace.WithAttributes(attribute.StringSlice("Arguments", req.Arguments)))
-	defer span.End()
-	req.Context = ctx
-
-	err := twe.exec.Execute(req, re, env)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-	}
-	return err
+	return cmdhttp.NewClient(host, opts...), nil
 }
 
 func getRepoPath(req *cmds.Request) (string, error) {

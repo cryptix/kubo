@@ -16,7 +16,6 @@ import (
 	config "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/core"
 	corecommands "github.com/ipfs/kubo/core/commands"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var errAPIVersionMismatch = errors.New("api version mismatch")
@@ -145,8 +144,8 @@ func commandsOption(cctx oldcmds.Context, command *cmds.Command) ServeOption {
 			cmdHandler = withAuthSecrets(authorizations, cmdHandler)
 		}
 
-		cmdHandler = otelhttp.NewHandler(cmdHandler, "corehttp.cmdsHandler")
-		mux.Handle(APIPath+"/", cmdHandler)
+		// cmdHandler = otelhttp.NewHandler(cmdHandler, "corehttp.cmdsHandler")
+		// mux.Handle(APIPath+"/", cmdHandler)
 		return mux, nil
 	}
 }
